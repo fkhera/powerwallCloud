@@ -22,9 +22,28 @@ from requests.exceptions import HTTPError, Timeout
 import urllib3
 urllib3.disable_warnings() # For 'verify=False' SSL warning
 import logging
+import urllib
+import traceback
+import os
+import hashlib
+import base64
+import re
+import urlparse
+import random
+import string
+
 
 _LOGGER = logging.getLogger(__name__)
 
+# How the flow will change, there will be a refresh token
+# Script will wake up, and check, refresh token, for the email item
+# Validate is refresh token expired
+# How do you know refresh token is expired?
+# Maybe you don't know so you use refresh token everyday to get an access token
+# Use Access Token to Exchange for Real Token
+# If you get to a place to get a refresh token, save the token for the email
+# If you do not have a refresh token, start the AUTH part to get a refresh token
+# If you have a refresh token, use the refresh token to get new token
 
 
 def main(emailItem, passwordItem):
@@ -36,17 +55,23 @@ def main(emailItem, passwordItem):
 
     logging.basicConfig(filename='powerwall_site.log', level=logging.WARNING)
 
-    ## Instantiate powerwall_site object
-    tpw = powerwall_site(gateway_host, password, email)
-    # Get valid token from OAuth
-    tpw.token = tpw.valid_token()
+    try: 
+        ## Instantiate powerwall_site object
+        tpw = powerwall_site(gateway_host, password, email)
+        # Get valid token from OAuth
     
+        tpw.token = tpw.vaild_token_new()
+   
+
     # Get Product List
-    tpw.productlist()
+        tpw.productlist()
 
     # ## Set Battery to Charge with defined reserve percent - Uses 5% defined above
-    real_mode = 'autonomous'
-    tpw.operation_set(real_mode, backup_reserve_percent)
+        real_mode = 'autonomous'
+        tpw.operation_set(real_mode, backup_reserve_percent)
+    except:
+        # printing stack trace 
+        traceback.print_exc() 
 
 
 class powerwall_site(object):
@@ -87,6 +112,204 @@ class powerwall_site(object):
         self.energy_site_id = ""
         self.energy_base_url = self.base_path + '/api/1/energy_sites/'
 
+        self.verifier_bytes = os.urandom(32)
+        self.challenge = base64.urlsafe_b64encode(self.verifier_bytes).rstrip(b'=')
+        self.challenge_bytes = hashlib.sha256(self.challenge).digest()
+        self.challengeSum = base64.urlsafe_b64encode(self.challenge_bytes).rstrip(b'=')
+
+    def vaild_token_new(self):
+        try: 
+            print "authenticating"
+            self.authenticate()
+            #print "transaction_id: " + transaction_id
+            #self.listDevices(transaction_id)
+
+        except: 
+            # printing stack trace 
+            traceback.print_exc() 
+        
+
+    def authenticate(self):
+        try: 
+            session = requests.Session()
+            print "authenticate method"
+            auth_url = self.authUrl();
+            headers = {
+                'User-Agent' : 'PowerwallDarwinManager' 
+            }
+            resp = session.get(auth_url, headers=headers)
+
+            csrf = re.search(r'name="_csrf".+value="([^"]+)"', resp.text).group(1)
+            transaction_id = re.search(r'name="transaction_id".+value="([^"]+)"', resp.text).group(1)
+
+            data = {
+                "_csrf": csrf,
+                "_phase": "authenticate",
+                "_process": "1",
+                "transaction_id": transaction_id,
+                "cancel": "",
+                "identity": self.email,
+                "credential": self.password,
+            }
+            print "Opening session with login"
+            # Important to say redirects false cause this will result in 302 and need to see next data
+            resp = session.post(auth_url, headers=headers, data=data, allow_redirects=False)
+            # Determine if user has MFA enabled
+            # In that case there is no redirect to `https://auth.tesla.com/void/callback` and app shows new form with Passcode / Backup Passcode field
+            is_mfa = True if resp.status_code == 200 and "/mfa/verify" in resp.text else False
+
+            print "isMFA: " + str(is_mfa)
+
+            if is_mfa:
+                getVars = {'transaction_id': transaction_id }
+                url = 'https://auth.tesla.com/oauth2/v3/authorize/mfa/factors'
+                mfaUrl = url + "?" + urllib.urlencode(getVars)
+                resp = session.get(mfaUrl, headers=headers)
+                # {
+                #     "data": [
+                #         {
+                #             "dispatchRequired": false,
+                #             "id": "41d6c32c-b14a-4cef-9834-36f819d1fb4b",
+                #             "name": "Device #1",
+                #             "factorType": "token:software",
+                #             "factorProvider": "TESLA",
+                #             "securityLevel": 1,
+                #             "activatedAt": "2020-12-07T14:07:50.000Z",
+                #             "updatedAt": "2020-12-07T06:07:49.000Z",
+                #         }
+                #     ]
+                # }
+                print(resp.text)
+                factor_id = resp.json()["data"][0]["id"]
+
+                # Can use Passcode
+                data = {"transaction_id": transaction_id, "factor_id": factor_id, "passcode": "YOUR_PASSCODE"}
+                resp = session.post("https://auth.tesla.com/oauth2/v3/authorize/mfa/verify", headers=headers, json=data)
+                # ^^ Content-Type - application/json
+                print(resp.text)
+                # {
+                #     "data": {
+                #         "id": "63375dc0-3a11-11eb-8b23-75a3281a8aa8",
+                #         "challengeId": "c7febba0-3a10-11eb-a6d9-2179cb5bc651",
+                #         "factorId": "41d6c32c-b14a-4cef-9834-36f819d1fb4b",
+                #         "passCode": "985203",
+                #         "approved": true,
+                #         "flagged": false,
+                #         "valid": true,
+                #         "createdAt": "2020-12-09T03:26:31.000Z",
+                #         "updatedAt": "2020-12-09T03:26:31.000Z",
+                #     }
+                # }
+                if "error" in resp.text or not resp.json()["data"]["approved"] or not resp.json()["data"]["valid"]:
+                    raise ValueError("Invalid passcode.")
+
+                # Can use Backup Passcode
+                data = {"transaction_id": transaction_id, "backup_code": "ONE_OF_BACKUP_CODES"}
+                resp = session.post(
+                    "https://auth.tesla.com/oauth2/v3/authorize/mfa/backupcodes/attempt", headers=headers, json=data
+                )
+                # ^^ Content-Type - application/json
+                print(resp.text)
+                # {
+                #     "data": {
+                #         "valid": true,
+                #         "reason": null,
+                #         "message": null,
+                #         "enrolled": true,
+                #         "generatedAt": "2020-12-09T06:14:23.170Z",
+                #         "codesRemaining": 9,
+                #         "attemptsRemaining": 10,
+                #         "locked": false,
+                #     }
+                # }
+                if "error" in resp.text or not resp.json()["data"]["valid"]:
+                    raise ValueError("Invalid backup passcode.")
+
+                data = {"transaction_id": transaction_id}
+                resp = session.post(
+                    "https://auth.tesla.com/oauth2/v3/authorize",
+                    headers=headers,
+                    params=params,
+                    data=data,
+                    allow_redirects=False,
+                )
+
+
+            # If not MFA This code plays instead , which is parising location
+            print "Coming to non MFA flow:"
+            code_url = resp.headers["location"]
+            parsed = urlparse.urlparse(code_url)
+            code = urlparse.parse_qs(parsed.query)['code']
+
+            payload = {
+                "grant_type": "authorization_code",
+                "client_id": "ownerapi",
+                "code_verifier": self.rand_str(108),
+                "code": code,
+                "redirect_uri": "https://auth.tesla.com/void/callback",
+            }
+
+            resp = session.post("https://auth.tesla.com/oauth2/v3/token", headers=headers, json=payload)
+            access_token = resp.json()["access_token"]
+
+            headers["authorization"] = "bearer " + access_token
+            payload = {
+                "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "client_id": self.TESLA_CLIENT_ID,
+            }
+            resp = session.post("https://owner-api.teslamotors.com/oauth/token", headers=headers, json=payload)
+            owner_access_token = resp.json()["access_token"]
+
+            self.token = owner_access_token
+            self.auth_header = {'Authorization': 'Bearer ' + self.token}
+
+        
+
+        except: 
+            # printing stack trace 
+            traceback.print_exc() 
+
+    def rand_str(self, chars=43):
+        letters = string.ascii_lowercase + string.ascii_uppercase + string.digits + "-" + "_"
+        return "".join(random.choice(letters) for i in range(chars))        
+
+    def listDevices(self, transaction_id):
+        print "getting url"
+        getVars = {'transaction_id': transaction_id }
+        url = 'https://auth.tesla.com/oauth2/v3/authorize/mfa/factors'
+
+        # Python 2:
+        result = url + "?" + urllib.urlencode(getVars)
+        print(result)
+        headers = {
+                'User-Agent' : 'PowerwallDarwinManager' 
+        }
+        resp = self.session.get(result, headers=headers)
+        print self.session.cookies
+        print resp
+        print resp.content
+        # Next steps I need the devices
+
+        
+    def authUrl(self):
+        print "getting url"
+        getVars = {'client_id': 'ownerapi', 
+                   'code_challenge': self.challengeSum,
+                   'code_challenge_method' : "S256",
+                   'redirect_uri' : "https://auth.tesla.com/void/callback",
+                   'response_type' : "code",
+                   'scope' : "openid email offline_access",
+                   'state' : "tesla_exporter"
+        }
+        url = 'https://auth.tesla.com/oauth2/v3/authorize'
+
+        # Python 2:
+        result = url + "?" + urllib.urlencode(getVars)
+        print(result)
+        return result
+
+        # Python 3:
+        # print(url + urllib.parse.urlencode(getVars))
 
     ### Returns current valid token or new valid token
     def valid_token(self):
@@ -111,7 +334,7 @@ class powerwall_site(object):
         data = json.dumps(json_data)
         #print(data)
         #print(json_data)
-        #print("Asking for token: ", url)
+        print("Asking for token: ", url)
 
         result = requests.post(url, headers=headers, data=data)
         #print ("Got response")
@@ -136,15 +359,15 @@ class powerwall_site(object):
         try:
             result = requests.get(url, headers=self.auth_header, verify=False, timeout=50)
             result = json.loads(result.text)
-            #dprint("Product List: ", result)
+            #print("Product List: ", result)
             productListItems = result["response"]
             count = int(result["count"])
             #This assumes the last product is the Powerwall 
-            print()
+            #print()
             for x in range(count):
                 productItem = productListItems[x]
                 #print ("Checking product item for site address: ", productItem)
-                #print()
+                print()
                 if("energy_site_id" in productItem):
                     foundEnergySite = True
                     energySiteAddress = x
