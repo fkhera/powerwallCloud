@@ -134,9 +134,10 @@ class powerwall_site(object):
             session = requests.Session()
             print "authenticate method"
             auth_url = self.authUrl();
-            headers = {
-                'User-Agent' : 'PowerwallDarwinManager' 
-            }
+            # headers = {
+            #    'User-Agent' : 'PowerwallDarwinManager' 
+            #}
+            headers = {}
             resp = session.get(auth_url, headers=headers)
 
             csrf = re.search(r'name="_csrf".+value="([^"]+)"', resp.text).group(1)
