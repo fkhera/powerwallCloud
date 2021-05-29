@@ -6,6 +6,9 @@ Welcome to powerwall cloud!
 * Install PIP and Pandas since it uses holidays, and possibly requests
 * Run python powerwallDriver.py backup or python powerwallDriver.py tou
 * Create a cron schedule to track your work
+* Install svglib for captcha , pip install svglib
+* Create account with 2captcha using link: https://2captcha.com?from=11874928
+* Replace API key in captchasolver.py with key obtained from 2captcha
 
 
 
