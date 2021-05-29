@@ -1,6 +1,12 @@
 Welcome to powerwall cloud!
 
 # Introduction
+* Powerwall cloud is a python script implementation of automating the reserve % from 0 to 100%
+* This ensures that the powerwall only discharges during time of use
+* It helps if time of use is split into multiple peaks like 5am-9am and 5pm-9pm , the chron schedule can be customized towards your utility
+* tou/backup scripts just change % to 0% or 100% as needed
+* Tesla normal algorithm will try to discharge the powerwall during idle times so this also ensures discharge idling does not occur
+* This code will login, answer captcha, and set the settings on schedule
 
 # Instructions
 * Install PIP and Pandas since it uses holidays, and possibly requests
