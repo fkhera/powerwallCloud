@@ -32,6 +32,8 @@ import urlparse
 import random
 import string
 
+import captchasolver
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,6 +63,12 @@ def main(emailItem, passwordItem):
         # Get valid token from OAuth
     
         tpw.token = tpw.vaild_token_new()
+        attempts = 0
+        while 'fail' in tpw.token and attempts < 4:
+            print "catcha failed retrying"
+            tpw.token = tpw.vaild_token_new()
+            attemps = attempts + 1
+   
    
 
     # Get Product List
@@ -120,7 +128,7 @@ class powerwall_site(object):
     def vaild_token_new(self):
         try: 
             print "authenticating"
-            self.authenticate()
+            return self.authenticate()
             #print "transaction_id: " + transaction_id
             #self.listDevices(transaction_id)
 
@@ -134,7 +142,8 @@ class powerwall_site(object):
             session = requests.Session()
             print "authenticate method"
             auth_url = self.authUrl();
-            # headers = {
+
+            #headers = {
             #    'User-Agent' : 'PowerwallDarwinManager' 
             #}
             headers = {}
@@ -142,6 +151,11 @@ class powerwall_site(object):
 
             csrf = re.search(r'name="_csrf".+value="([^"]+)"', resp.text).group(1)
             transaction_id = re.search(r'name="transaction_id".+value="([^"]+)"', resp.text).group(1)
+
+
+
+            captchacode = captchasolver.main(session, headers)
+            print("captchacode: ", captchacode)
 
             data = {
                 "_csrf": csrf,
@@ -151,6 +165,7 @@ class powerwall_site(object):
                 "cancel": "",
                 "identity": self.email,
                 "credential": self.password,
+                "captcha" : captchacode
             }
             print "Opening session with login"
             # Important to say redirects false cause this will result in 302 and need to see next data
@@ -262,13 +277,13 @@ class powerwall_site(object):
             owner_access_token = resp.json()["access_token"]
 
             self.token = owner_access_token
-            self.auth_header = {'Authorization': 'Bearer ' + self.token}
-
-        
+            self.auth_header = {'Authorization': 'Bearer ' + self.token} 
+            return "success"      
 
         except: 
             # printing stack trace 
-            traceback.print_exc() 
+            traceback.print_exc()
+            return "fail" 
 
     def rand_str(self, chars=43):
         letters = string.ascii_lowercase + string.ascii_uppercase + string.digits + "-" + "_"
