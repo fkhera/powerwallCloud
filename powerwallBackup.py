@@ -59,7 +59,7 @@ def main(emailItem, passwordItem):
 
     attempts = 0
     tpw = powerwall_site(gateway_host, password, email)  
-    while 'fail' in tpw.token and attempts < 4:
+    while 'fail' in tpw.token and attempts < 6:
         print ("attempts count: ", attempts)
         try:
             attempts = attempts + 1 
@@ -77,7 +77,7 @@ def main(emailItem, passwordItem):
             # printing stack trace 
             traceback.print_exc()
 
-    if attempts > 3: 
+    if attempts > 5: 
         print("Attempts exceeded")
 
 
