@@ -11,8 +11,8 @@ import base64
 # The link above allows you to create a acount with 2captcha which is what we use
 # If you know me we can share API key, just reach out to me  thanks
 # Appreciate donations to keep 2captcha going, anything helps
-API_KEY = '2captcha-api-key'  # Your 2captcha API KEY
-CAPTCHA_ENABLE = False
+API_KEY = ''  # Your 2captcha API KEY
+CAPTCHA_ENABLE = True
 
 def main(session, headers):
 

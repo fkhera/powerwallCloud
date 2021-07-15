@@ -31,7 +31,7 @@ def main(mode):
                 accountComponents = line.split(':')
                 email = accountComponents[0]
                 password = accountComponents[1]
-                #print "Processing: ", email, password
+                print "Processing: ", email
                 print "Invoking mode: ", mode
 
                 #TO DO IF IT IS HOLIDAY JUST INVOKE ACTION

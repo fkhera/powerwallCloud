@@ -59,28 +59,28 @@ def main(emailItem, passwordItem):
 
     logging.basicConfig(filename='powerwall_site.log', level=logging.WARNING)
 
-    try: 
-        ## Instantiate powerwall_site object
-        tpw = powerwall_site(gateway_host, password, email)
-        # Get valid token from OAuth
+    attempts = 0
+    tpw = powerwall_site(gateway_host, password, email)  
+    while 'fail' in tpw.token and attempts < 4:
+        print ("attempts count: ", attempts)
+        try:
+            attempts = attempts + 1 
+            # Get valid token from OAuth
+            tpw.token = tpw.vaild_token_new()       
+       
 
-        tpw.token = tpw.vaild_token_new()
-        attempts = 0
-        while 'fail' in tpw.token and attempts < 4:
-            print "catcha failed retrying"
-            tpw.token = tpw.vaild_token_new()
-            attemps = attempts + 1
-   
+        # Get Product List
+            tpw.productlist()
 
-    # Get Product List
-        tpw.productlist()
+        # ## Set Battery to Charge with defined reserve percent - Uses 5% defined above
+            real_mode = 'autonomous'
+            tpw.operation_set(real_mode, backup_reserve_percent)
+        except:
+            # printing stack trace 
+            traceback.print_exc()
 
-    # ## Set Battery to Charge with defined reserve percent - Uses 5% defined above
-        real_mode = 'autonomous'
-        tpw.operation_set(real_mode, backup_reserve_percent)
-    except:
-        # printing stack trace 
-        traceback.print_exc() 
+    if attempts > 3: 
+        print("Attempts exceeded")
 
 
 class powerwall_site(object):
@@ -101,7 +101,7 @@ class powerwall_site(object):
     def __init__(self, gateway_host, password, email):
         """Return a new Powerwall_site object."""
         self.email = email
-        self.token = 'uTniKuPbmCRrrX4mP8lKqtFkgSTRZC7P5uJQE_Uocq1fB2-yyrXcgLCWoDWASQF3o66bRd4iHCZE_yi5dRnoMg=='
+        self.token = 'fail'
         self.running = False
         # self.uptime = 0
         # self.connected_to_tesla = False
@@ -142,10 +142,10 @@ class powerwall_site(object):
             print "authenticate method"
             auth_url = self.authUrl();
 
-            #headers = {
-            #    'User-Agent' : 'PowerwallDarwinManager' 
-            #}
-            headers = {}
+            headers = {
+                'User-Agent' : 'PowerwallDarwinManager' 
+            }
+            # headers = {}
             resp = session.get(auth_url, headers=headers)
 
             csrf = re.search(r'name="_csrf".+value="([^"]+)"', resp.text).group(1)
