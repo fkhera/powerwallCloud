@@ -1,5 +1,6 @@
 import powerwallBackup
 import powerwallTimeOfUse
+import powerwallTimeOfUseCheck
 
 import sys
 import time
@@ -50,6 +51,9 @@ def main(mode):
 
                     if(mode == "tou"):
                         powerwallTimeOfUse.main(email, password)
+
+                    if(mode == "check"):
+                        powerwallTimeOfUseCheck.main(email, password)
 
                 #Delay between accounts to not flag warning signs
                 time.sleep(1)
