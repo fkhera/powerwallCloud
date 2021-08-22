@@ -37,6 +37,7 @@ crontab -e
 #Summer
 
 40 13 * 5-10 1-5 python /home/pi/powerwallDriver.py tou > logTou.txt
+15 14 * 5-10 1-5 python /home/pi/powerwallDriver.py check > logTouCheck.txt
 1 20 * 5-10 1-5 python /home/pi/powerwallDriver.py backup > logBackup.txt
 
 #Winter
