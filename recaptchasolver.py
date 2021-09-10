@@ -1,7 +1,5 @@
 import requests
 from time import sleep
-from svglib.svglib import svg2rlg
-from reportlab.graphics import renderPM
 import base64
 
 # You will need pip install svglib
@@ -14,24 +12,13 @@ import base64
 API_KEY = ''  # Your 2captcha API KEY
 CAPTCHA_ENABLE = True
 
-def main(session, headers):
+def main(sitekey, pageurl):
 
     if(CAPTCHA_ENABLE): 
         # Captcha is session based so use the same headers
         print 'Getting captcha'
-        catpcha = session.get('https://auth.tesla.com/captcha', headers=headers)
+        #catpcha = session.get('https://auth.tesla.com/captcha', headers=headers)
 
-        # Save captch as .png image to send 2Captcha service locally
-        file = open("captcha.svg", "wb")
-        file.write(catpcha.content)
-        file.close()
-
-        drawing = svg2rlg("captcha.svg")
-        renderPM.drawToFile(drawing, "captcha.png", fmt="PNG")
-
-        # Encode image base 64
-        with open('captcha.png', 'rb') as image_file:
-            encoded_string = base64.b64encode(image_file.read())
 
         # Now use the image file saved locally to post to captcha service and wait for response
         # here we post site key to 2captcha to get captcha ID (and we parse it here too)
@@ -39,13 +26,11 @@ def main(session, headers):
 
         data = {
             "key": API_KEY,
-            "method": "base64",
-            "body": encoded_string,
-            "regsense": 1,
-            "textinstructions": "text",        
+            "method": "userrecaptcha",
+            "googlekey": sitekey,
+            "pageurl": pageurl      
         }
            
-        files = open('captcha.png', 'rb')
         resp = requests.post(current_url,
                     data=data)
 
@@ -63,7 +48,7 @@ def main(session, headers):
 
         captcha_answer = resp.text
         while 'CAPCHA_NOT_READY' in captcha_answer:
-            sleep(5)
+            sleep(15)
             captcha_answer = requests.get(answer_url,
                     params=data)
             print captcha_answer.text

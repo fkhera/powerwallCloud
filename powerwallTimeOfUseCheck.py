@@ -144,19 +144,19 @@ class powerwall_site(object):
             print "authenticate method"
             auth_url = self.authUrl();
 
-            headers = {
-                'User-Agent' : 'PowerwallDarwinManager' 
-            }
-            # headers = {}
+            headers = {}
             resp = session.get(auth_url, headers=headers)
+            #print (resp.text)
+
+
+            recaptcha_site_key = re.search(r".*sitekey.* : '(.*)'", resp.text).group(1)
+            print ('captcha sitekey: ' + recaptcha_site_key)
+            print ('auth url: ' + auth_url)
+
 
             csrf = re.search(r'name="_csrf".+value="([^"]+)"', resp.text).group(1)
             transaction_id = re.search(r'name="transaction_id".+value="([^"]+)"', resp.text).group(1)
-
-
-
-            captchacode = captchasolver.main(session, headers)
-            print("captchacode: ", captchacode)
+            captchacode = recaptchasolver.main(recaptcha_site_key, auth_url)
 
             data = {
                 "_csrf": csrf,
@@ -166,8 +166,10 @@ class powerwall_site(object):
                 "cancel": "",
                 "identity": self.email,
                 "credential": self.password,
-                "captcha" : captchacode
+                "g-recaptcha-response:": captchacode,
+                "recaptcha": captchacode
             }
+
             print "Opening session with login"
             # Important to say redirects false cause this will result in 302 and need to see next data
             resp = session.post(auth_url, headers=headers, data=data, allow_redirects=False)
