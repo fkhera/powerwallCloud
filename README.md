@@ -50,4 +50,4 @@ crontab -e
 # About code
 * powerwallDriver.py - main driver file
 * powerwallBackup.py  - runs back up for given account (set reserve to 100%) forces charge
-* powerwallTimeOfUser.py - runs time of use given account (set reserve to 0%) forces discharge
+* powerwallTimeOfUse.py - runs time of use given account (set reserve to 0%) forces discharge

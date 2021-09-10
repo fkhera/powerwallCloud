@@ -32,7 +32,7 @@ import urlparse
 import random
 import string
 
-import captchasolver
+import recaptchasolver
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ def main(emailItem, passwordItem):
 
     attempts = 0
     tpw = powerwall_site(gateway_host, password, email)  
-    while 'fail' in tpw.token and attempts < 6:
+    while 'fail' in tpw.token and attempts < 5:
         print ("attempts count: ", attempts)
         try:
             attempts = attempts + 1 
@@ -143,19 +143,22 @@ class powerwall_site(object):
             print "authenticate method"
             auth_url = self.authUrl();
 
-            headers = {
-                'User-Agent' : 'PowerwallDarwinManager' 
-            }
-            #headers = {}
+            #headers = {
+            #    #'User-Agent' : 'PowerwallDarwinManager' 
+            #}
+            headers = {}
             resp = session.get(auth_url, headers=headers)
+            #print (resp.text)
+
+
+            recaptcha_site_key = re.search(r".*sitekey.* : '(.*)'", resp.text).group(1)
+            print ('captcha sitekey: ' + recaptcha_site_key)
+            print ('auth url: ' + auth_url)
+
 
             csrf = re.search(r'name="_csrf".+value="([^"]+)"', resp.text).group(1)
             transaction_id = re.search(r'name="transaction_id".+value="([^"]+)"', resp.text).group(1)
-
-
-
-            captchacode = captchasolver.main(session, headers)
-            print("captchacode: ", captchacode)
+            captchacode = recaptchasolver.main(recaptcha_site_key, auth_url)
 
             data = {
                 "_csrf": csrf,
@@ -165,8 +168,11 @@ class powerwall_site(object):
                 "cancel": "",
                 "identity": self.email,
                 "credential": self.password,
-                "captcha" : captchacode
+                "g-recaptcha-response:": captchacode,
+                "recaptcha": captchacode
             }
+            
+            #print(data)
             print "Opening session with login"
             # Important to say redirects false cause this will result in 302 and need to see next data
             resp = session.post(auth_url, headers=headers, data=data, allow_redirects=False)
@@ -253,7 +259,14 @@ class powerwall_site(object):
 
             # If not MFA This code plays instead , which is parising location
             print "Coming to non MFA flow:"
+            #print (resp)
+            #print ("response text: ==================================")
+            #print (resp.text)
+            #print ("response headers: ----------------------------------------")
+            #print (resp.headers)
+
             code_url = resp.headers["location"]
+            print("location header: " + str(code_url))
             parsed = urlparse.urlparse(code_url)
             code = urlparse.parse_qs(parsed.query)['code']
 
