@@ -32,7 +32,7 @@ import urlparse
 import random
 import string
 
-import captchasolver
+import recaptchasolver
 import sendEmail
 
 
