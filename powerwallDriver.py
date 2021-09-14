@@ -43,14 +43,14 @@ def main(mode):
 
                 if TODAY in holidays:
                     print "Today is a holiday keep invoking back up"
-                    powerwallBackup.main(email, password)
+                    powerwallBackup.main(email, password, "100.0")
                 else:
                     #TODAY IS NOT A HOLIDAY foward on to action
                     if(mode == "backup"):
-                        powerwallBackup.main(email, password)
+                        powerwallBackup.main(email, password, "100.0")
 
                     if(mode == "tou"):
-                        powerwallTimeOfUse.main(email, password)
+                        powerwallBackup.main(email, password, "0.0")
 
                     if(mode == "check"):
                         powerwallTimeOfUseCheck.main(email, password)
