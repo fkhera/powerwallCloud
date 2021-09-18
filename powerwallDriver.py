@@ -1,13 +1,10 @@
 import powerwallBackup
-import powerwallTimeOfUse
 import powerwallTimeOfUseCheck
 
 import sys
 import time
 import datetime
 from pandas.tseries.holiday import *
-
-FILE_TO_READ = "accounts.txt"
 
 class SRPCalendar(AbstractHolidayCalendar):
    rules = [
@@ -21,10 +18,10 @@ class SRPCalendar(AbstractHolidayCalendar):
    ]
 
 
-def main(mode):
+def main(mode, fileToRead="accounts.txt"):
     #Change these items
 
-    with open(FILE_TO_READ) as f:
+    with open(fileToRead) as f:
         lines = f.readlines()
         lines = [x.strip() for x in lines] 
         for line in lines:
@@ -61,4 +58,7 @@ def main(mode):
                 print("Unexpected error:", sys.exc_info()[0])
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    if len(sys.argv) == 3:
+        main(sys.argv[1], sys.argv[2])
+    else:
+        main(sys.argv[1])
