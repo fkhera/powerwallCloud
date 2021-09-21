@@ -14,7 +14,7 @@ Welcome to powerwall cloud!
 * Create a cron schedule to track your work
 * Install svglib for captcha , pip install svglib
 * Create account with 2captcha using link: https://2captcha.com?from=11874928
-* Replace API key in captchasolver.py with key obtained from 2captcha
+* Replace API key in recaptchasolver.py with key obtained from 2captcha
 
 
 
