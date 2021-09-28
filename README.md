@@ -9,6 +9,7 @@ Welcome to powerwall cloud!
 * This code will login, answer captcha, and set the settings on schedule
 
 # Instructions
+* Files must be saved to /home/user otherwise CRON won't be able to find accounts.txt
 * Install PIP and Pandas since it uses holidays, and possibly requests
 * Run python powerwallDriver.py backup or python powerwallDriver.py tou
 * Create a cron schedule to track your work
