@@ -95,7 +95,7 @@ class powerwall_site(object):
         self.auth_header = {'Content-Type': 'application/json','Authorization': 'Bearer ' + self.token}
         self.haveCar = True
         
-        self.energy_site_id = ""
+        self.energy_site_id = []
         self.energy_base_url = self.base_path + '/api/1/energy_sites/'
 
     def vaild_token_new(self):
@@ -150,7 +150,7 @@ class powerwall_site(object):
                 result = productListItems[energySiteAddress]
                 print("Energy item: ", result)
                 print("Site Id: ", result["energy_site_id"])
-                self.energy_site_id = result["energy_site_id"]
+                self.energy_site_id.append(result["energy_site_id"])
                 
         except requests.exceptions.RequestException:
             print('HTTP Request failed')
@@ -164,21 +164,23 @@ class powerwall_site(object):
         #payload = json.dumps({"real_mode": real_mode, "backup_reserve_percent": backup_reserve_percent})
 
         set_endpoint = '/backup'
-        set_url = self.energy_base_url + str(self.energy_site_id) + set_endpoint
-        print ("Setting Operation for Site Id: ", self.energy_site_id)
-        print ("Trying URL: ", set_url)
+        # Iterate through all sites now
+        for energy_site_id in self.energy_site_id:
+            set_url = self.energy_base_url + str(energy_site_id) + set_endpoint
+            print ("Setting Operation for Site Id: ", energy_site_id)
+            print ("Trying URL: ", set_url)
 
-        print ("Setting mode: " + json.dumps(payload))
+            print ("Setting mode: " + json.dumps(payload))
 
-        try:
-            result = requests.post(set_url, json=payload, headers=self.auth_header, timeout=50)
-            print("Set result output: ", result.content)
-            if result.status_code == 201:
-                print("Successfully changed reserve mode")
-        except HTTPError as err:
-            print("Error: {0}".format(err))
-        except Timeout as err:
-            print("Request timed out: {0}".format(err))#
+            try:
+                result = requests.post(set_url, json=payload, headers=self.auth_header, timeout=50)
+                print("Set result output: ", result.content)
+                if result.status_code == 201:
+                    print("Successfully changed reserve mode")
+            except HTTPError as err:
+                print("Error: {0}".format(err))
+            except Timeout as err:
+                print("Request timed out: {0}".format(err))#
 
 if __name__ == "__main__":
     main()
