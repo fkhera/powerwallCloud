@@ -9,12 +9,14 @@ Welcome to powerwall cloud!
 * This code will login, answer captcha, and set the settings on schedule
 
 # Instructions
+* Files must be saved to /home/user otherwise CRON won't be able to find accounts.txt
 * Install PIP and Pandas since it uses holidays, and possibly requests
 * Run python powerwallDriver.py backup or python powerwallDriver.py tou
 * Create a cron schedule to track your work
-* Install svglib for captcha , pip install svglib
+* Install svglib for captcha, pip install svglib
+* Install pickledb, pip install pickledb
 * Create account with 2captcha using link: https://2captcha.com?from=11874928
-* Replace API key in captchasolver.py with key obtained from 2captcha
+* Replace API key in recaptchasolver.py with key obtained from 2captcha
 
 
 
