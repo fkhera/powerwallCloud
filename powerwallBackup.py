@@ -145,12 +145,11 @@ class powerwall_site(object):
                     foundEnergySite = True
                     energySiteAddress = x
                     print ("Found energy site @ product: ", energySiteAddress)
-                    
-            if(foundEnergySite):
-                result = productListItems[energySiteAddress]
-                print("Energy item: ", result)
-                print("Site Id: ", result["energy_site_id"])
-                self.energy_site_id.append(result["energy_site_id"])
+                    result = productListItems[energySiteAddress]
+                    print("Energy item: ", result)
+                    print("Site Id: ", result["energy_site_id"])
+                    if(result.has_key("battery_type")):
+                        self.energy_site_id.append(result["energy_site_id"])
                 
         except requests.exceptions.RequestException:
             print('HTTP Request failed')
