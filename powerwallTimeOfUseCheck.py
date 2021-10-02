@@ -120,7 +120,7 @@ class powerwall_site(object):
         self.TESLA_CLIENT_SECRET='c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3'
         self.haveCar = True
         
-        self.energy_site_id = ""
+        self.energy_site_id = []
         self.energy_base_url = self.base_path + '/api/1/energy_sites/'
 
         self.verifier_bytes = os.urandom(32)
@@ -174,12 +174,11 @@ class powerwall_site(object):
                     foundEnergySite = True
                     energySiteAddress = x
                     print ("Found energy site @ product: ", energySiteAddress)
-                    
-            if(foundEnergySite):
-                result = productListItems[energySiteAddress]
-                print("Energy item: ", result)
-                print("Site Id: ", result["energy_site_id"])
-                self.energy_site_id = result["energy_site_id"]
+                    result = productListItems[energySiteAddress]
+                    print("Energy item: ", result)
+                    print("Site Id: ", result["energy_site_id"])
+                    if(result.has_key("battery_type")):
+                        self.energy_site_id.append(result["energy_site_id"])
                 
         except requests.exceptions.RequestException:
             print('HTTP Request failed')
@@ -192,40 +191,44 @@ class powerwall_site(object):
         payload = {"backup_reserve_percent": backup_reserve_percent}
         #payload = json.dumps({"real_mode": real_mode, "backup_reserve_percent": backup_reserve_percent})
 
-        set_endpoint = '/backup'
-        get_url = self.energy_base_url + str(self.energy_site_id) + '/site_info'
-        set_url = self.energy_base_url + str(self.energy_site_id) + set_endpoint
-        print ("Setting Operation for Site Id: ", self.energy_site_id)
-        print ("Trying URL: ", set_url)
+        
+        for energy_site_id in self.energy_site_id:
 
-        print ("Setting mode: " + json.dumps(payload))
+            print ("Setting mode: " + json.dumps(payload))
+            set_endpoint = '/backup'
+            get_url = self.energy_base_url + str(energy_site_id) + '/site_info'
+            set_url = self.energy_base_url + str(energy_site_id) + set_endpoint
+            print ("Setting Operation for Site Id: ", energy_site_id)
+            print ("Trying URL: ", set_url)
 
-        try:
-            print ("Trying URL: ", get_url)
-            result = requests.get(get_url, json=payload, headers=self.auth_header, timeout=50)
-            print("Get result output: ", result.content)
-            result = json.loads(result.text)
-            get_reserve_percent = result["response"]
-            get_reserve_percent = get_reserve_percent["backup_reserve_percent"]
-            print("Current reserve percent: ", get_reserve_percent)
-            #okay check here, if reserve % not 0, then set it back
-            if get_reserve_percent != 0:
-                bodyText = 'Powerwall reserve may not be set, would be good to check, we have sent a retry, current reserve: ' + str(get_reserve_percent) + '%'
-                sendEmail.main(self.email, bodyText)
-                print "Found reserve % to be off setting it"
-                print ("Trying URL: ", set_url)
-                result = requests.post(set_url, json=payload, headers=self.auth_header, timeout=50)
-                print("Set result output: ", result.content)
-                if result.status_code == 201:
-                    print("Successfully changed reserve mode")
-            else:
-                print("Reserve is set correctly, skipping")
+            print ("Setting mode: " + json.dumps(payload))
+
+            try:
+                print ("Trying URL: ", get_url)
+                result = requests.get(get_url, json=payload, headers=self.auth_header, timeout=50)
+                print("Get result output: ", result.content)
+                result = json.loads(result.text)
+                get_reserve_percent = result["response"]
+                get_reserve_percent = get_reserve_percent["backup_reserve_percent"]
+                print("Current reserve percent: ", get_reserve_percent)
+                #okay check here, if reserve % not 0, then set it back
+                if get_reserve_percent != 0:
+                    bodyText = 'Powerwall reserve may not be set, would be good to check, we have sent a retry, current reserve: ' + str(get_reserve_percent) + '%'
+                    sendEmail.main(self.email, bodyText)
+                    print "Found reserve % to be off setting it"
+                    print ("Trying URL: ", set_url)
+                    result = requests.post(set_url, json=payload, headers=self.auth_header, timeout=50)
+                    print("Set result output: ", result.content)
+                    if result.status_code == 201:
+                        print("Successfully changed reserve mode")
+                else:
+                    print("Reserve is set correctly, skipping")
 
 
-        except HTTPError as err:
-            print("Error: {0}".format(err))
-        except Timeout as err:
-            print("Request timed out: {0}".format(err))
+            except HTTPError as err:
+                print("Error: {0}".format(err))
+            except Timeout as err:
+                print("Request timed out: {0}".format(err))
 
 if __name__ == "__main__":
     main()
