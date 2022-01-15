@@ -26,6 +26,11 @@ import dateutil
 _LOGGER = logging.getLogger(__name__)
 db = pickledb.load('token.db', True)
 
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from fake_useragent import UserAgent
+
+
 def getDateTimeFromISO8601String(s):
     d = dateutil.parser.parse(s)
     return d
@@ -72,7 +77,7 @@ class powerwall_site(object):
         self.TESLA_CLIENT_ID='81527cff06843c8634fdc09e8ac0abefb46ac849f38fe1e431c2ef2106796384'
         self.TESLA_CLIENT_SECRET='c7257eb71a564034f9419ee651c7d0e5f7aa6bfbd18bafb5c5c033b093bb2fa3'
 
-        self.verifier_bytes = os.urandom(32)
+        self.verifier_bytes = os.urandom(43)
         self.challenge = base64.urlsafe_b64encode(self.verifier_bytes).rstrip(b'=')
         self.challenge_bytes = hashlib.sha256(self.challenge).digest()
         self.challengeSum = base64.urlsafe_b64encode(self.challenge_bytes).rstrip(b'=')
@@ -197,14 +202,15 @@ class powerwall_site(object):
 
             headers = {}
             resp = session.get(auth_url, headers=headers)
+            
             #print (resp.text)
-            recaptcha_site_key = re.search(r".*sitekey.* : '(.*)'", resp.text).group(1)
-            print ('captcha sitekey: ' + recaptcha_site_key)
-            print ('auth url: ' + auth_url)
+            #recaptcha_site_key = re.search(r".*sitekey.* : '(.*)'", resp.text).group(1)
+            #print ('captcha sitekey: ' + recaptcha_site_key)
+            #print ('auth url: ' + auth_url)
 
             csrf = re.search(r'name="_csrf".+value="([^"]+)"', resp.text).group(1)
             transaction_id = re.search(r'name="transaction_id".+value="([^"]+)"', resp.text).group(1)
-            captchacode = recaptchasolver.main(recaptcha_site_key, auth_url)
+            #captchacode = recaptchasolver.main(recaptcha_site_key, auth_url)
 
             data = {
                 "_csrf": csrf,
@@ -213,18 +219,41 @@ class powerwall_site(object):
                 "transaction_id": transaction_id,
                 "cancel": "",
                 "identity": self.email,
-                "credential": self.password,
-                "g-recaptcha-response:": captchacode,
-                "recaptcha": captchacode
+                "credential": self.password
+                #"g-recaptcha-response": captchacode,
+                #"recaptcha": captchacode
             }
 
             print "Opening session with login"
-            # Important to say redirects false cause this will result in 302 and need to see next data
-            resp = session.post(auth_url, headers=headers, data=data, allow_redirects=False)
-        
+            #print data
+
+            options = Options()
+            options.add_argument("--window-size=1920x1080")
+            options.add_argument("--verbose")
+            options.add_argument("--no-sandbox");
+            options.add_argument("--disable-dev-shm-usage");
+            ua = UserAgent()
+            userAgent = ua.random
+            print(userAgent)
+            #options.add_argument('user-agent={userAgent}')
+            #options.add_argument("--headless")
+            
+            driver = webdriver.Chrome(options=options)
+            driver.get(auth_url)
+            driver.find_element_by_name('identity').send_keys(self.email)
+            driver.find_element_by_name('credential').send_keys(self.password)
+            # delay
+            time.sleep(5)
+            driver.find_element_by_id('form-submit-continue').click()
+            time.sleep(5)
+            code_url = driver.current_url
+            driver.close()
+            print(code_url)
+
+            #resp = session.post(auth_url, headers=headers, data=data, proxies={'http':'209.208.26.29:8118'}, allow_redirects=False)
             # If not MFA This code plays instead , which is parising location
             print "Coming to non MFA flow:"
-            code_url = resp.headers["location"]
+            #code_url = resp.headers["location"]
             parsed = urlparse.urlparse(code_url)
             code = urlparse.parse_qs(parsed.query)['code']
 
@@ -235,6 +264,8 @@ class powerwall_site(object):
                 "code": code,
                 "redirect_uri": "https://auth.tesla.com/void/callback",
             }
+            print "Sleeping next iteration"
+            time.sleep(60)
 
             return self.getAccesTokenJwt(session, payload)
      
